@@ -821,8 +821,10 @@ def footMove(self, nameSpace, side) :
         
         cmds.setAttr(toe + '.tx', 1)
 
-
-        outside = cmds.spaceLocator(n=nameSpace + 'footBack_loc' + side)[0]
+        if side == 'LF':
+            outside = cmds.spaceLocator(n=nameSpace + 'footBack_loc' + side)[0]
+        else:
+            outside = cmds.spaceLocator(n=nameSpace + 'footFront_loc' + side)[0]
         utils.snap(foot,outside)
         utils.freeze(outside)
         cmds.setAttr(outside + '.tz',-.5)
@@ -830,8 +832,11 @@ def footMove(self, nameSpace, side) :
         cmds.setAttr(outside + '.overrideEnabled',1)
         cmds.setAttr(outside + '.overrideColor',4)
         
-
-        inside = cmds.spaceLocator(n=nameSpace + 'footFront_loc' + side)[0]
+        if side == 'LF':
+            inside = cmds.spaceLocator(n=nameSpace + 'footFront_loc' + side)[0]
+        else:
+            inside = cmds.spaceLocator(n=nameSpace + 'footBack_loc' + side)[0]
+            
         utils.snap(foot,inside)
         utils.freeze(inside)
         cmds.setAttr(inside + '.tz',.5)
@@ -1443,7 +1448,7 @@ def legRig(self, nameSpace, side) :
         utils.IKFKSwitch(nameSpace, obj, side, IKJoints, FKJoints, resultJoints)
 
         #Non-Roll limb setup
-        hipGrp = utils.nonRollLimb(nameSpace, side, obj, resultJoints, jnum = 4, axis = 'z')
+        hipGrp = utils.nonRollLimb(nameSpace, side, obj, resultJoints, jnum = 4, axis = 'y')
 
         armUpChain = utils.pfx_JointList(pfx = nameSpace + 'twist_' + obj + 'Up' + side)
         armDnChain = utils.pfx_JointList(pfx = nameSpace + 'twist_' + obj + 'Dn' + side)
@@ -1518,20 +1523,23 @@ def clavicleRig(self, nameSpace, side) :
             cmds.setAttr(control + '.ry', 90)
         utils.freeze(control)
         cmds.parent(handle, control)
-        
-        #spaceSwitch
 
-        cmds.parentConstraint(nameSpace + 'ChestIK', nameSpace + 'SpineFK_6',cmds.group(control,n =  nameSpace + 'grp' + obj + side), mo=1)
+        #spaceSwitch
+        if cmds.objExists(nameSpace + 'ChestIK') == False:
+            name = ''
+        else:
+            name = nameSpace 
         
-        cmds.setAttr(nameSpace + 'Spine.SpineSwitch', 0)
-        cmds.setDrivenKeyframe (nameSpace +  'grpClav' + side + '_parentConstraint1.' +  nameSpace + 'ChestIKW0',cd= nameSpace + 'Spine' + '.SpineSwitch',dv=0,v=1) 
-        cmds.setDrivenKeyframe (nameSpace +  'grpClav' + side + '_parentConstraint1.' +  'SpineFK_6W1',cd=  nameSpace +'Spine' + '.SpineSwitch',dv=0,v=0) 
-        cmds.setAttr(nameSpace + 'Spine.SpineSwitch', 1)
-        cmds.setDrivenKeyframe (nameSpace +  'grpClav' + side + '_parentConstraint1.' + nameSpace + 'ChestIKW0',cd=  nameSpace +'Spine' + '.SpineSwitch',dv=1,v=0) 
-        cmds.setDrivenKeyframe (nameSpace +  'grpClav' + side + '_parentConstraint1.' + 'SpineFK_6W1',cd= nameSpace +'Spine' + '.SpineSwitch',dv=1,v=1) 
-        cmds.setAttr(nameSpace + 'Spine.SpineSwitch', 0)       
-   
-        cmds.delete(nameSpace + 'crv_Shoulder' + side)
+        cmds.parentConstraint(name + 'ChestIK', name + 'SpineFK_6',cmds.group(control,n =  name + 'grp' + obj + side), mo=1)
+        cmds.setAttr(name + 'Spine.SpineSwitch', 0)
+        cmds.setDrivenKeyframe (name +  'grpClav' + side + '_parentConstraint1.' +  name + 'ChestIKW0',cd= name + 'Spine' + '.SpineSwitch',dv=0,v=1) 
+        cmds.setDrivenKeyframe (name +  'grpClav' + side + '_parentConstraint1.' +  name + 'SpineFK_6W1',cd=  name +'Spine' + '.SpineSwitch',dv=0,v=0) 
+        cmds.setAttr(name + 'Spine.SpineSwitch', 1)
+        cmds.setDrivenKeyframe (name +  'grpClav' + side + '_parentConstraint1.' + name + 'ChestIKW0',cd=  name +'Spine' + '.SpineSwitch',dv=1,v=0) 
+        cmds.setDrivenKeyframe (name +  'grpClav' + side + '_parentConstraint1.' + name + 'SpineFK_6W1',cd= name +'Spine' + '.SpineSwitch',dv=1,v=1) 
+        cmds.setAttr(name + 'Spine.SpineSwitch', 0)       
+
+        cmds.delete(nameSpace + 'crv_Shoulder' + side)     
         utils.lockAttr([control], vis = True, scale = True)
 
 
@@ -1650,7 +1658,7 @@ def footRig(self,nameSpace, side):
         utils.connectAdjust(nameSpace,sknJoints, resultJoints, obj, side, switch = 'LegSettings' + side, rotation = 'rx')
         cmds.delete(nameSpace + 'grpskn_Foot_Skinned' + side)
         
-        cmds.parent('Leg_End_DistLoc_' + side, 'HeelPivot' + side)
+        cmds.parent(nameSpace +'Leg_End_DistLoc_' + side, nameSpace + 'HeelPivot' + side)
         
 ################################
 #
@@ -1675,7 +1683,7 @@ def handRig(self,nameSpace, side):
 
         jLocations = [nameSpace + 'Ankle' + '_Move' + side,nameSpace + 'Ball' + '_Move' + side,nameSpace + 'Toe' + '_Move' + side]
 
-        hand = [nameSpace +'Index',nameSpace +'Middle',nameSpace +'Ring',nameSpace +'Pinky',nameSpace +'Thumb']
+        hand = ['Index','Middle','Ring','Pinky','Thumb']
         indexJointsIK = []
         middleJointsIK = []
         ringJointsIK = []
@@ -1811,13 +1819,13 @@ def handRig(self,nameSpace, side):
                             elif finger == hand[4]:
                                 pass                    
                         elif side == 'RT' :
-                            utils.reverseAttr(target + '.' +  finger + 'Spread', poser + '.ry')
+                            cmds.connectAttr(target + '.' +  finger + 'Spread', poser + '.ry', f = 1)
 
                             if finger == hand[0]:
                                 utils.reverseAttr(target + '.' +  'Spread', qPoser + '.ry')
                                 utils.reverseAttr(target + '.' +  'FanFwd', qPoser2 + '.rz')
                                 utils.reverseAttr(target + '.' +  'FanBack', qPoser3 + '.rz')
-                                cmds.setAttr(target + '_Spread_Reverse_Mult.input2X', -1)
+                                cmds.setAttr(target + '_Spread_Reverse_Mult.input2X', 1)
                                 cmds.setAttr(target + '_FanFwd_Reverse_Mult.input2X', -1)
                                 cmds.setAttr(target + '_FanBack_Reverse_Mult.input2X', -.1)
 
@@ -1828,12 +1836,12 @@ def handRig(self,nameSpace, side):
                                 utils.reverseAttr(target + '.' +  'PalmCup', pinGrpBase + '.rz')
                                 utils.reverseAttr(target + '.' +  'PalmCup', pinGrpBase + '.rx')
                                 utils.reverseAttr(target + '.' +  'PalmSpread', pinGrpBase + '.ry')
-                                cmds.setAttr(target + '_Spread_Reverse_Mult1.input2X', -.5) 
+                                cmds.setAttr(target + '_Spread_Reverse_Mult1.input2X', .5) 
                                 cmds.setAttr(target + '_FanFwd_Reverse_Mult1.input2X', -.7)
                                 cmds.setAttr(target + '_FanBack_Reverse_Mult1.input2X', -.4)
                                 cmds.setAttr(target + '_PalmCup_Reverse_Mult.input2X', -.2)
                                 cmds.setAttr(target + '_PalmCup_Reverse_Mult1.input2X', .2)
-                                cmds.setAttr(target + '_PalmSpread_Reverse_Mult.input2X', -.2)
+                                cmds.setAttr(target + '_PalmSpread_Reverse_Mult.input2X', .2)
                                 
                             elif finger == hand[2]:
                                 utils.reverseAttr(target + '.' + 'Spread', qPoser + '.ry')
@@ -1844,10 +1852,10 @@ def handRig(self,nameSpace, side):
                                 utils.reverseAttr(target + '.' +  'PalmSpread', pinGrpBase + '.ry')
                                 cmds.setAttr(target + '_FanFwd_Reverse_Mult2.input2X', -.4)
                                 cmds.setAttr(target + '_FanBack_Reverse_Mult2.input2X', -.7)
-                                cmds.setAttr(target + '_Spread_Reverse_Mult2.input2X', .5) 
+                                cmds.setAttr(target + '_Spread_Reverse_Mult2.input2X', -.5) 
                                 cmds.setAttr(target + '_PalmCup_Reverse_Mult2.input2X', -.5) 
                                 cmds.setAttr(target + '_PalmCup_Reverse_Mult3.input2X', .5) 
-                                cmds.setAttr(target + '_PalmSpread_Reverse_Mult1.input2X',-.6) 
+                                cmds.setAttr(target + '_PalmSpread_Reverse_Mult1.input2X',.6) 
                                 
                             elif finger == hand[3]:
                                 utils.reverseAttr(target + '.' + 'Spread', qPoser + '.ry')
@@ -1861,7 +1869,7 @@ def handRig(self,nameSpace, side):
                                 cmds.setAttr(target + '_FanBack_Reverse_Mult3.input2X', -1)
                                 cmds.setAttr(target + '_PalmCup_Reverse_Mult4.input2X', -1)
                                 cmds.setAttr(target + '_PalmCup_Reverse_Mult5.input2X', 1)
-                                cmds.setAttr(target + '_PalmSpread_Reverse_Mult2.input2X', -1)
+                                cmds.setAttr(target + '_PalmSpread_Reverse_Mult2.input2X', 1)
                                 
                             elif finger == hand[4]:
                                 pass

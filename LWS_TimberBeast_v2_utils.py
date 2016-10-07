@@ -1084,6 +1084,8 @@ def noFlipIK_PoleVector(nameSpace, pv, side,parent, obj) :
     cmds.parent(curve, nameSpace + 'grpEX')
     grpCurve = cmds.group(loc,n = nameSpace + 'grp' + obj + 'NonFlip_loc' + side)
     
+    spaceSwitch(nameSpace,name = 'PV_', parentList = [nameSpace + 'Character', nameSpace + 'grpArmPoleVecor' + side,nameSpace + 'HipsIK', nameSpace + 'ChestIK'], child = ball, switch = ball, parentCount = 4,orientOnly = False, default = 1 )    
+    
     cmds.parent(grp, w = 1)
     lockAttr([ball], vis = True, rotate = True, scale = True)
     
@@ -1340,8 +1342,8 @@ def IKFKSwitch(nameSpace, obj, side, IKJoints, FKJoints, resultJoints, switch = 
         cmds.setDrivenKeyframe (nameSpace + obj + 'IK' + side,cd=switch + '.' + obj + 'Switch',dv=0,attribute='.v',v=1) 
         cmds.setDrivenKeyframe (nameSpace + obj + 'Pole' + side,cd=switch + '.' + obj + 'Switch',dv=1,attribute='.v',v=0) 
         cmds.setDrivenKeyframe (nameSpace + obj + 'Pole' + side,cd=switch + '.' + obj + 'Switch',dv=0,attribute='.v',v=1)
-        cmds.setDrivenKeyframe (nameSpace + 'crv_templetCurve_' + bendPoint + 'Pole_loc' + side,cd=switch + '.' + obj + 'Switch',dv=1,attribute='.v',v=0) 
-        cmds.setDrivenKeyframe (nameSpace + 'crv_templetCurve_' + bendPoint + 'Pole_loc' + side,cd=switch + '.' + obj + 'Switch',dv=0,attribute='.v',v=1)
+        cmds.setDrivenKeyframe (nameSpace + 'crv_templetCurve_' + nameSpace + bendPoint + 'Pole_loc' + side,cd=switch + '.' + obj + 'Switch',dv=1,attribute='.v',v=0) 
+        cmds.setDrivenKeyframe (nameSpace + 'crv_templetCurve_' + nameSpace + bendPoint + 'Pole_loc' + side,cd=switch + '.' + obj + 'Switch',dv=0,attribute='.v',v=1)
         
         cmds.parent(grpSwitch, resultJoints[-1])
  
@@ -1497,7 +1499,7 @@ def nonRollLimb(nameSpace, side, obj, resultJoints, jnum = 4, axis = 'x') :
     cmds.orientConstraint(orientLoc, nameSpace + 'grptwist_' + obj + 'Up' + side, mo=1)
 
     
-    cmds.select(twistLocDn,twistLoc, elbLoc, wstLoc,orientLoc)
+    cmds.select(twistLocDn, twistLoc, elbLoc, wstLoc, wstLocFwd, orientLoc, elbLocFwd)
     hide()
     
     return orientGrp
@@ -1517,7 +1519,7 @@ def limbRibbon(nameSpace, obj, side, upChain, dnChain, reverse) :
     planeDn = nameSpace + 'nrb_' + obj + 'Dn' + side + 'Plane'
     cmds.setAttr(planeDn + '.sx', lock = False, keyable = True, channelBox = False)
 
-    conListDn =  rigRibbon(nameSpace = nameSpace, obj = obj + 'Dn', plane = planeDn, side = side, jnum = 5, reverse = reverse)
+    conListDn = rigRibbon(nameSpace = nameSpace, obj = obj + 'Dn', plane = planeDn, side = side, jnum = 5, reverse = reverse)
     grpForarmSkinnedDn = cmds.rename(nameSpace + 'grp' + obj + 'Dn' + side, nameSpace + 'grp' + obj + 'Dn' + side + '_Skinned')
 
 
@@ -1543,10 +1545,12 @@ def limbRibbon(nameSpace, obj, side, upChain, dnChain, reverse) :
     for item in conListDn:
         index = conListDn.index(item)
         cmds.parent(cmds.listRelatives(item, p = 1), dnChain[index])
-        cmds.connectAttr(nameSpace + 'res_' + obj + '_Result02' + side + '.sx',  dnChain[index] + '.sx',f = 1)
-        cmds.connectAttr(nameSpace + 'res_' + obj + '_Result02' + side + '.sy',  dnChain[index] + '.sy',f = 1)
-        cmds.connectAttr(nameSpace + 'res_' + obj + '_Result02' + side + '.sz',  dnChain[index] + '.sz',f = 1)
-
+        #cmds.connectAttr(nameSpace + 'res_' + obj + '_Result02' + side + '.sx',  dnChain[index] + '.sx',f = 1)
+        #cmds.connectAttr(nameSpace + 'res_' + obj + '_Result02' + side + '.sy',  dnChain[index] + '.sy',f = 1)
+        #cmds.connectAttr(nameSpace + 'res_' + obj + '_Result02' + side + '.sz',  dnChain[index] + '.sz',f = 1)
+        mel.eval('CBdeleteConnection '+ dnChain[index] + '.sx'+ ';')
+        mel.eval('CBdeleteConnection '+ dnChain[index] + '.sy'+ ';')
+        mel.eval('CBdeleteConnection '+ dnChain[index] + '.sz'+ ';')
     cmds.delete(grpForarmSkinnedUp, grpForarmSkinnedDn)
 
 ##################################################
@@ -2200,132 +2204,141 @@ name = 'Pack'
 switch = child
 '''
 
-def spaceSwitch(nameSpace,name, parentList, child, switch, parentCount = 3,orientOnly = False ):
-
+def spaceSwitch(nameSpace,name, parentList, child, switch, parentCount = 3,orientOnly = False, default = 0 ):
     try:
+        if name == 'PV_':
+            item2 = 'Non-Flip'
+        else:
+            item2 = parentList[1]
+        
+
+        try:
+            
+            if parentCount == 2:
+                cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + item2 + ':',dv = default)
+                cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
+            elif parentCount == 3:
+                cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + item2 + ':' + parentList[2] + ':',dv = default)
+                cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
+            elif parentCount == 4:
+                cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + item2 + ':' + parentList[2] + ':' + parentList[3] + ':',dv = default)
+                cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
+            elif parentCount == 5:
+                cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + item2 + ':' + parentList[2] + ':' + parentList[3] + ':' + parentList[4] + ':',dv = default)
+                cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
+        except: 
+            pass
+
+        locList = []
+        for item in parentList :
+            loc = cmds.spaceLocator(n = nameSpace + item + '_' + child + 'Spaceloc')[0]
+            snap(child, loc)
+            cmds.parent(loc, item)
+            locList.append(loc)
+
+
+        grp = cmds.group(child, n =  child + 'SpaceLocGRP')
+        snapPivot(child, grp)
+        
+        if orientOnly == True :
+            cmds.orientConstraint(locList, grp, mo = 1)
+            constraintType = '_orientConstraint1'
+        else:
+            cmds.parentConstraint(locList, grp, mo = 1)
+            constraintType = '_parentConstraint1'
+
         if parentCount == 2:
-            cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + parentList[1] + ':')
-            cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
-        elif parentCount == 3:
-            cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + parentList[1] + ':' + parentList[2] + ':')
-            cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
+
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
+            
+
+        if parentCount == 3:
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[2] + 'W2',v=0) 
+
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[2] + 'W2',v=0) 
+            
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[2] + 'W2',v=1) 
+            
+            
         elif parentCount == 4:
-            cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + parentList[1] + ':' + parentList[2] + ':' + parentList[3] + ':')
-            cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
+
+
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[3] + 'W3',v=0) 
+
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[3] + 'W3',v=0) 
+            
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[2] + 'W2',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[3] + 'W3',v=0) 
+
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[3] + 'W3',v=1) 
+
+
         elif parentCount == 5:
-            cmds.addAttr(switch, ln= name + '_Parent', at='enum', en = parentList[0] + ':' + parentList[1] + ':' + parentList[2] + ':' + parentList[3] + ':' + parentList[4] + ':')
-            cmds.setAttr( switch + '.' + name + '_Parent', e = 1, keyable=1,)
-    except: 
-        pass
-
-    locList = []
-    for item in parentList :
-        loc = cmds.spaceLocator(n = nameSpace + item + '_' + child + 'Spaceloc')[0]
-        snap(child, loc)
-        cmds.parent(loc, item)
-        locList.append(loc)
 
 
-    grp = cmds.group(child, n =  child + 'SpaceLocGRP')
-    snapPivot(child, grp)
-    
-    if orientOnly == True :
-        cmds.orientConstraint(locList, grp, mo = 1)
-        constraintType = '_orientConstraint1'
-    else:
-        cmds.parentConstraint(locList, grp, mo = 1)
-        constraintType = '_parentConstraint1'
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[3] + 'W3',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[4] + 'W4',v=0) 
 
-    if parentCount == 2:
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[3] + 'W3',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[4] + 'W4',v=0) 
+            
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[2] + 'W2',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[3] + 'W3',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[4] + 'W4',v=0) 
 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
-        
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[3] + 'W3',v=1) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[4] + 'W4',v=0) 
 
-    if parentCount == 3:
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[0] + 'W0',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[1] + 'W1',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[2] + 'W2',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[3] + 'W3',v=0) 
+            cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[4] + 'W4',v=1) 
 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[2] + 'W2',v=0) 
-        
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[2] + 'W2',v=1) 
-        
-        
-    elif parentCount == 4:
-
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[3] + 'W3',v=0) 
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[3] + 'W3',v=0) 
-        
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[2] + 'W2',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[3] + 'W3',v=0) 
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[3] + 'W3',v=1) 
-
-
-    elif parentCount == 5:
-
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[0] + 'W0',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[3] + 'W3',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=0,attribute='.' + locList[4] + 'W4',v=0) 
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[1] + 'W1',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[3] + 'W3',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=1,attribute='.' + locList[4] + 'W4',v=0) 
-        
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[2] + 'W2',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[3] + 'W3',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=2,attribute='.' + locList[4] + 'W4',v=0) 
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[3] + 'W3',v=1) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=3,attribute='.' + locList[4] + 'W4',v=0) 
-
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[0] + 'W0',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[1] + 'W1',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[2] + 'W2',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[3] + 'W3',v=0) 
-        cmds.setDrivenKeyframe (grp + constraintType,cd=switch + '.' + name + '_Parent',dv=4,attribute='.' + locList[4] + 'W4',v=1) 
-
-    if cmds.objExists(nameSpace + 'grpWorld_SpaceLocs') == False :
-        grpWorld = cmds.group(locList[0], n = nameSpace + 'grpWorld_SpaceLocs')
-    else :
-        cmds.parent(locList[0], nameSpace + 'grpWorld_SpaceLocs')
-    cmds.select(locList)
-    hide()
-
+        if cmds.objExists(nameSpace + 'grpWorld_SpaceLocs') == False :
+            grpWorld = cmds.group(locList[0], n = nameSpace + 'grpWorld_SpaceLocs')
+        else :
+            cmds.parent(locList[0], nameSpace + 'grpWorld_SpaceLocs')
+        cmds.select(locList)
+        hide()
+    except:
+        cmds.warning('SpaceSwitch failed. Probably because we couldn\'t find the parent or something. Call Andy')
+                     
 def stretchyIK(nameSpace, joints, obj, side, skipScale = False, solver = 'ikSCsolver') :
     character = nameSpace + 'Character'
     cmds.select(joints)
-    handle = cmds.ikHandle(n=obj + '_IKHandle' + side,sol=solver)[0]
+    handle = cmds.ikHandle(n=nameSpace + obj + '_IKHandle' + side,sol=solver)[0]
     if skipScale == False:
         srtJoint = joints[0]
         endJoint = joints[1]
